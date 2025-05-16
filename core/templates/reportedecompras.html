@@ -1,0 +1,318 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Reporte de Compras</title>
+    <link rel="stylesheet" href="{% static 'css/styles.css' %}">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet"
+        integrity="sha384-T3c6CoIi6uLrA9TneNEoa7RxnatzjcDSCmG1MXxSR1GAsXEV/Dwwykc2MPK8M2HN" crossorigin="anonymous">
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"
+        integrity="sha384-C6RzsynM9kWDrMNeT87bh95OGNyZPhcTNXj1NW7RuBCsyN/o0jlpcV8Qyq46cDfL"
+        crossorigin="anonymous"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.0/papaparse.min.js"></script>
+</head>
+
+<body>
+    <header>
+        <div class="alert text-center display-2" role="alert">
+            <strong>Tienda Mi Cosito</strong>
+        </div>
+    </header>
+    <br>
+    <main>
+        <h2 class="text-center">Reporte de Compras</h2>
+        <table id="tablaReporte" class="table">
+            <thead>
+                <tr>
+                    <th>Fecha</th>
+                    <th>Cantidad</th>
+                    <th>Precio unitario</th>
+                    <th>Valor total</th>
+                    <th>Acciones</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for Compra in compra %}
+                    <tr>
+                        <td>{{Compra.id }}</td>
+                        <td>{{Compra.Cantidad }}</td>
+                        <td>{{Compra.Precio_unitario }}</td>
+                        <td>{{Compra.Fecha }}</td>
+                    </tr>
+                {% endfor %}
+                <!-- Otras filas de la tabla aquí -->
+            </tbody>
+        </table>
+        <hr>
+        <div class="button-container">
+            <button id="btnAgregarCompra" class="ms-5 btn btn-primary">Agregar</button>
+            <button id="btnExportar" class="ms-2 btn btn-primary">Exportar</button>
+            <input type="file" id="fileInput" style="display: none;" accept=".csv">
+            <button id="btnImportar" class="ms-2 btn btn-primary">Importar</button>
+        </div>
+        <br>
+        {% url 'home' as home_url %}
+        <button onclick="window.location.href = '{{ home_url }}'" class="ms-5 btn btn-primary">Regresar</button>
+
+        <div class="ms-5">
+            <div class="modal fade" id="modalCompra" tabindex="-1" aria-labelledby="exampleModalLabel"
+                aria-hidden="true">
+                <div class="modal-dialog">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h5 class="modal-title" id="exampleModalLabel">Agregar Compra</h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                        </div>
+                        <div class="modal-body">
+                            <form id="formularioCompraModal" method="post" action="{% url 'reporte_de_compras' %}">
+                                {% csrf_token %}
+                                <label for="fechaCompra">Fecha:</label>
+                                <input type="date" id="fechaCompra" name="fechaCompra" required>
+                        
+                                <label for="cantidadCompra">Cantidad:</label>
+                                <input type="number" id="cantidadCompra" name="cantidadCompra" required>
+                        
+                                <label for="precioCompra">Precio unitario:</label>
+                                <input type="number" id="precioCompra" name="precioCompra" required oninput="calcularValorTotalCompra()">
+                        
+                                <label for="valorTotalCompra">Valor total:</label>
+                                <input type="number" id="valorTotalCompra" name="valorTotalCompra" readonly>
+                        
+                                <button type="submit" class="btn btn-primary">Guardar</button>
+                            </form>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" id="btnCerrar" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+                            <button type="button" class="btn btn-primary"
+                                onclick="agregarEditarCompra()">Agregar</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <script>
+            function limpiarFormularioCompra() {
+                document.getElementById("formularioCompraModal").reset();
+                document.getElementById("btnAgregarCompra").textContent = "Agregar";
+            }
+
+            function mostrarFormularioCompra() {
+                limpiarFormularioCompra();
+
+                var modalElement = document.getElementById('modalCompra');
+                var modalCompra = bootstrap.Modal.getInstance(modalElement);
+
+                if (modalCompra) {
+                    modalCompra.dispose();
+                }
+
+                modalCompra = new bootstrap.Modal(modalElement);
+                modalCompra.show();
+            }
+
+            function ocultarFormularioCompra() {
+                limpiarFormularioCompra()
+            }
+
+            document.getElementById('btnCerrar').addEventListener('click', ocultarFormularioCompra());
+
+            document.getElementById("btnAgregarCompra").addEventListener("click", function () {
+                mostrarFormularioCompra();
+            });
+
+            function calcularValorTotalCompra() {
+                const cantidadInput = document.getElementById("cantidadCompra");
+                const precioInput = document.getElementById("precioCompra");
+                const valorTotalInput = document.getElementById("valorTotalCompra");
+
+                const cantidad = cantidadInput.value;
+                const precio = precioInput.value;
+
+                if (!isNaN(cantidad) && !isNaN(precio)) {
+                    const valorTotal = cantidad * precio;
+                    valorTotalInput.value = valorTotal.toFixed(2);
+                } else {
+                    valorTotalInput.value = "";
+                }
+            }
+
+            function agregarEditarCompra() {
+                const formularioCompra = document.getElementById("formularioCompraModal");
+                const fechaCompra = formularioCompra.querySelector("#fechaCompra").value;
+                const cantidadCompra = formularioCompra.querySelector("#cantidadCompra").value;
+                const precioCompra = formularioCompra.querySelector("#precioCompra").value;
+                const valorTotalCompra = formularioCompra.querySelector("#valorTotalCompra").value;
+
+                if (fechaCompra && cantidadCompra && precioCompra && valorTotalCompra) {
+                    const tbody = document.querySelector("#tablaReporte tbody");
+                    const filaEditando = tbody.querySelector(".editando");
+
+                    if (filaEditando) {
+                        const celdas = filaEditando.getElementsByTagName("td");
+                        celdas[0].textContent = fechaCompra;
+                        celdas[1].textContent = cantidadCompra;
+                        celdas[2].textContent = precioCompra;
+                        celdas[3].textContent = valorTotalCompra;
+                        filaEditando.classList.remove("editando");
+                    } else {
+                        const fila = document.createElement("tr");
+                        const celdas = [fechaCompra, cantidadCompra, precioCompra, valorTotalCompra];
+
+                        celdas.forEach((dato) => {
+                            const celda = document.createElement("td");
+                            celda.textContent = dato;
+                            fila.appendChild(celda);
+                        });
+
+                        const botonEditar = document.createElement("button");
+                        botonEditar.textContent = "Editar";
+                        botonEditar.classList.add("btn", "btn-primary");
+                        botonEditar.addEventListener("click", function () {
+                            editarCompra(fila);
+                        });
+
+                        const botonEliminar = document.createElement("button");
+                        botonEliminar.textContent = "Eliminar";
+                        botonEliminar.classList.add("btn", "btn-danger");
+                        botonEliminar.addEventListener("click", function () {
+                            eliminarCompra(fila);
+                        });
+
+                        const celdaBotones = document.createElement("td");
+                        celdaBotones.appendChild(botonEditar);
+                        celdaBotones.appendChild(botonEliminar);
+                        fila.appendChild(celdaBotones);
+
+                        tbody.appendChild(fila);
+                    }
+
+                    limpiarFormularioCompra();
+                    ocultarFormularioCompra();
+                } else {
+                    alert("Por favor, complete todos los campos del formulario.");
+                }
+            }
+
+            function editarCompra(fila) {
+                fila.classList.add("editando");
+
+                const celdas = fila.getElementsByTagName("td");
+                const fechaCompra = celdas[0].textContent;
+                const cantidadCompra = celdas[1].textContent;
+                const precioCompra = celdas[2].textContent;
+                const valorTotalCompra = celdas[3].textContent;
+
+                document.getElementById("fechaCompra").value = fechaCompra;
+                document.getElementById("cantidadCompra").value = cantidadCompra;
+                document.getElementById("precioCompra").value = precioCompra;
+                document.getElementById("valorTotalCompra").value = valorTotalCompra;
+
+                document.getElementById("btnAgregarCompra").textContent = "Guardar";
+                mostrarFormularioCompra();
+            }
+
+            function eliminarCompra(fila) {
+                const confirmacion = confirm("¿Estás seguro de que deseas eliminar esta compra?");
+                if (confirmacion) {
+                    fila.remove();
+                }
+            }
+
+            function exportarCSV() {
+                const tabla = document.getElementById("tablaReporte");
+                const filas = tabla.querySelectorAll("tbody tr");
+
+                let csv = "Fecha,Cantidad,Precio unitario,Valor total\n";
+
+                filas.forEach((fila) => {
+                    const fechaCompra = fila.cells[0].textContent;
+                    const cantidadCompra = fila.cells[1].textContent;
+                    const precioCompra = fila.cells[2].textContent;
+                    const valorTotalCompra = fila.cells[3].textContent;
+                    csv += `${fechaCompra},${cantidadCompra},${precioCompra},${valorTotalCompra}\n`;
+                });
+
+                const enlace = document.createElement("a");
+                enlace.href = "data:text/csv;charset=utf-8," + encodeURI(csv);
+                enlace.target = "_blank";
+                enlace.download = "reporte_compras.csv";
+                enlace.click();
+            }
+
+            function procesarArchivoCSV(archivo) {
+                const lector = new FileReader();
+                lector.onload = function (e) {
+                    const contenido = e.target.result;
+
+                    Papa.parse(contenido, {
+                        header: true,
+                        complete: function (result) {
+                            const nuevosDatos = result.data;
+
+                            const tbody = document.querySelector("#tablaReporte tbody");
+
+                            nuevosDatos.forEach((nuevoDato) => {
+                                const fila = document.createElement("tr");
+
+                                const celdas = ["Fecha", "Cantidad", "Precio unitario", "Valor total"];
+                                celdas.forEach((columna) => {
+                                    const celda = document.createElement("td");
+                                    celda.textContent = nuevoDato[columna];
+                                    fila.appendChild(celda);
+                                });
+
+                                const botonEditar = document.createElement("button");
+                                botonEditar.textContent = "Editar";
+                                botonEditar.classList.add("btn", "btn-primary");
+                                botonEditar.addEventListener("click", function () {
+                                    editarCompra(fila);
+                                });
+
+                                const botonEliminar = document.createElement("button");
+                                botonEliminar.textContent = "Eliminar";
+                                botonEliminar.classList.add("btn", "btn-danger");
+                                botonEliminar.addEventListener("click", function () {
+                                    eliminarCompra(fila);
+                                });
+
+                                const celdaBotones = document.createElement("td");
+                                celdaBotones.appendChild(botonEditar);
+                                celdaBotones.appendChild(botonEliminar);
+                                fila.appendChild(celdaBotones);
+
+                                tbody.appendChild(fila);
+                            });
+                        },
+                    });
+                };
+
+                lector.readAsText(archivo);
+            }
+
+            document.addEventListener("DOMContentLoaded", function () {
+                const btnExportar = document.getElementById("btnExportar");
+                const btnImportar = document.getElementById("btnImportar");
+                const fileInput = document.getElementById("fileInput");
+
+                btnExportar.addEventListener("click", exportarCSV);
+
+                btnImportar.addEventListener("click", function () {
+                    fileInput.click();
+                });
+
+                fileInput.addEventListener("change", function () {
+                    const archivo = fileInput.files[0];
+                    if (archivo) {
+                        procesarArchivoCSV(archivo);
+                    }
+                });
+            });
+        </script>
+    </main>
+</body>
+
+</html>
